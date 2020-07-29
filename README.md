@@ -13,7 +13,16 @@ The main function is `forms.Render(interface{}) (template.HTML, error)`. This
 returns a set of HTML inputs that can be nested directly in your
 `html/template.Template`.
 
-The input types have sensible defaults but can be overwridden with struct tags.
+The input types have sensible defaults but can be overwridden with struct tags
+or with explicit `Options`:
+
+```
+form.RenderOpts(NewUserForm{}, map[string]Options{
+    "Username": form.Options{Name: "username", ID: "username-field"},
+})
+```
+
+
 
 ## Usage
 
