@@ -34,6 +34,7 @@ type Options struct {
 	Class string
 	ID    string
 	Name  string
+	Value interface{}
 }
 
 func parseOpts(opts []string) (Options, error) {
@@ -50,6 +51,8 @@ func parseOpts(opts []string) (Options, error) {
 			options.Class = parts[1]
 		case "id":
 			options.ID = parts[1]
+		case "value":
+			options.Value = parts[1]
 		default:
 			return options, fmt.Errorf("invalid option: %v", parts[0])
 		}
@@ -92,6 +95,10 @@ func RenderEach(d interface{}) ([]template.HTML, error) {
 	return RenderEachOpts(d, nil)
 }
 
+func escape(v interface{}) string {
+	return template.HTMLEscapeString(fmt.Sprintf("%s", v))
+}
+
 func renderInput(opts Options) template.HTML {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("<input type=\"%s\" name=\"%s\"", opts.Type, opts.Name))
@@ -101,6 +108,10 @@ func renderInput(opts Options) template.HTML {
 	if opts.ID != "" {
 		sb.WriteString(fmt.Sprintf(" id=\"%s\"", opts.ID))
 	}
+	if opts.Value != nil {
+		sb.WriteString(fmt.Sprintf(" value=\"%s\"", escape(opts.Value)))
+	}
+
 	sb.WriteString(">")
 	return template.HTML(sb.String())
 }
@@ -126,16 +137,34 @@ func render(v reflect.Value, optsMap map[string]Options) ([]template.HTML, error
 		v = v.Elem()
 	}
 	if v.Kind() != reflect.Struct {
-		return nil, errors.New("schema: interface must be a struct")
+		return nil, errors.New("forms.render: interface must be a struct")
 	}
 	t := v.Type()
 
 	var out []template.HTML
 
 	for i := 0; i < v.NumField(); i++ {
-		name, opts := fieldAlias(t.Field(i), "form")
-		if name == "-" {
+
+		tagOptions, err := OptionsFromTag(t.Field(i), "form")
+		if err != nil {
+			return nil, fmt.Errorf("forms.render: %w", err)
+		}
+
+		// Prefer supplied options. Fallback to using tag-based options.
+		var options Options
+		if optsMap != nil {
+			options = optsMap[tagOptions.Name]
+		}
+
+		options = mergeOptions(options, tagOptions)
+		if options.Name == "-" {
 			continue
+		}
+
+		if val, ok := options.Value.(string); ok && val == "" {
+			options.Value = ""
+		} else if !v.Field(i).IsZero() {
+			options.Value = v.Field(i).Interface()
 		}
 
 		// Encode struct pointer types if the field is a valid pointer and a struct.
@@ -162,23 +191,6 @@ func render(v reflect.Value, optsMap map[string]Options) ([]template.HTML, error
 			return nil, errors.New("form.Render: cannot render slice types")
 		}
 
-		// Prefer supplied options. Fallback to using tag-based options.
-		var options Options
-		if optsMap != nil {
-			var ok bool
-			options, ok = optsMap[name]
-			if !ok {
-				options = Options{Name: name}
-			}
-		}
-
-		tagOptions, err := parseOpts(opts)
-		if err != nil {
-			return nil, fmt.Errorf("Render: %w", err)
-		}
-
-		options = mergeOptions(options, tagOptions)
-
 		// No type provided, look up default
 		if options.Type == "" {
 			def, err := HTMLType(v.Field(i).Type())
@@ -194,20 +206,24 @@ func render(v reflect.Value, optsMap map[string]Options) ([]template.HTML, error
 	return out, nil
 }
 
-// parseTag splits a struct field's url tag into its name and comma-separated
-// options.
-func parseTag(tag string) (string, []string) {
-	s := strings.Split(tag, ",")
-	return s[0], s[1:]
-}
+func OptionsFromTag(field reflect.StructField, tagName string) (Options, error) {
 
-// fieldAlias parses a field tag to get a field alias.
-func fieldAlias(field reflect.StructField, tagName string) (alias string, options []string) {
-	if tag := field.Tag.Get(tagName); tag != "" {
-		alias, options = parseTag(tag)
+	tag := field.Tag.Get(tagName)
+	if tag == "" {
+		return Options{Name: field.Name}, nil
 	}
-	if alias == "" {
-		alias = field.Name
+
+	s := strings.Split(tag, ",")
+	alias, opts := s[0], s[1:]
+	options, err := parseOpts(opts)
+	if err != nil {
+		return options, err
 	}
-	return alias, options
+
+	options.Name = field.Name
+	if alias != "" {
+		options.Name = alias
+	}
+
+	return options, nil
 }

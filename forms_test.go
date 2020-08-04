@@ -27,7 +27,9 @@ var base = template.Must(template.New("base").Parse(`
 
 func TestRender(t *testing.T) {
 
-	form, err := Render(NewUserForm{})
+	form, err := Render(NewUserForm{
+		Username: "filwisher",
+	})
 	if err != nil {
 		t.Errorf("error rendering form: %v", err)
 	}
@@ -47,9 +49,12 @@ func TestRender(t *testing.T) {
 
 func TestRenderOpts(t *testing.T) {
 
-	form, err := RenderOpts(NewUserForm{}, map[string]Options{
+	form, err := RenderOpts(NewUserForm{
+		Password: "hunter2",
+	}, map[string]Options{
 		"Username": Options{Name: "email", Type: "text"},
 		"confirm":  Options{Name: "confirm-password", Type: "password"},
+		"password": Options{Value: ""},
 	})
 	if err != nil {
 		t.Errorf("error rendering form: %v", err)
