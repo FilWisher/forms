@@ -6,7 +6,15 @@ import (
 	"html/template"
 	"reflect"
 	"strings"
+
+	"github.com/gorilla/schema"
 )
+
+func NewDecoder() *schema.Decoder {
+	dec := schema.NewDecoder()
+	dec.SetAliasTag("forms")
+	return dec
+}
 
 func HTMLType(t reflect.Type) (string, error) {
 	switch t.Kind() {
