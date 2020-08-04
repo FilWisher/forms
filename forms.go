@@ -156,7 +156,7 @@ func render(v reflect.Value, optsMap map[string]Options) ([]template.HTML, error
 
 	for i := 0; i < v.NumField(); i++ {
 
-		tagOptions, err := OptionsFromTag(t.Field(i), "form")
+		tagOptions, err := OptionsFromTag(t.Field(i), "forms")
 		if err != nil {
 			return nil, fmt.Errorf("forms.render: %w", err)
 		}
