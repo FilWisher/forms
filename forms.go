@@ -129,6 +129,9 @@ func mergeOptions(opts Options, defaults Options) Options {
 	if opts.Type == "" {
 		opts.Type = defaults.Type
 	}
+	if opts.Value == nil {
+		opts.Value = defaults.Value
+	}
 	return opts
 }
 
@@ -215,6 +218,10 @@ func OptionsFromTag(field reflect.StructField, tagName string) (Options, error) 
 
 	s := strings.Split(tag, ",")
 	alias, opts := s[0], s[1:]
+	if strings.Index(alias, "=") != -1 {
+		opts = append(opts, alias)
+		alias = ""
+	}
 	options, err := parseOpts(opts)
 	if err != nil {
 		return options, err
