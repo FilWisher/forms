@@ -1,13 +1,40 @@
 # forms
 
-Easily generate HTML form inputs from your types. Parse HTTP request parameters
-back into types (like https://github.com/gorilla/schema).
+Easily generate HTML form inputs from your structs. Parse HTTP request parameters
+back into structs (like https://github.com/gorilla/schema).
+
+Supports:
+ o slices
+ o nested types
+ o generating HTML from structs
+ o parsing structs from HTTP requests
+ o prefilling input values
+ o custom `id` and `class` attributes
+ o configuration through struct tags or option parameters
+
+## Usage
+
+**Types to HTML**
 
 ```
-inputs, _ := form.Render(NewUserForm{})
-tmpl.Execute(os.Stdout, map[string]interface{}{
-    "form": inputs,
-})
+type NewUser struct {
+    Username string `forms:"username"`
+    Password string `forms:"password,type=password"`
+    Confirm string  `forms:"confirm-password,type=password"`
+}
+
+var tmpl = template.Must(template.New("").Parse("{{ .form }}"))
+
+func handler(w http.ResponseWriter, r *http.Request) {
+
+    user := &NewUser{}
+    form, err := forms.Render(user)
+    if err != nil {
+        ...
+    }
+
+    tmpl.Execute(w, map[string]interface{}{"form": form})
+}
 ```
 
 The main function is `forms.Render(interface{}) (template.HTML, error)`. This
@@ -67,7 +94,32 @@ will generate this form:
 <input type='text' name='Person.Pets.2.Name' value='biggles'>
 ```
 
-## Usage
+**HTTP to Types**
+```
+type NewUser struct {
+    Username string `forms:"username"`
+    Password string `forms:"password,type=password"`
+    Confirm string  `forms:"confirm-password,type=password"`
+}
+
+// This is just a *github.com/gorilla/schema.Decoder
+var decoder = forms.NewDecoder()
+
+func handler(w http.ResponseWriter, r *http.Request) {
+    err := r.ParseForm()
+    if err != nil {
+        ...
+    }
+
+    newUser := &NewUser{}
+    err = decoder.Decode(&newUser, r.PostForm)
+    if err != nil {
+        ...
+    }
+}
+```
+
+## Example
 
 Full example
 
