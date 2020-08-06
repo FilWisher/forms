@@ -4,13 +4,13 @@ Easily generate HTML form inputs from your structs. Parse HTTP request parameter
 back into structs (like https://github.com/gorilla/schema).
 
 Supports:
- o slices
- o nested types
- o generating HTML from structs
- o parsing structs from HTTP requests
- o prefilling input values
- o custom `id` and `class` attributes
- o configuration through struct tags or option parameters
+- slices
+- nested types
+- generating HTML from structs
+- parsing structs from HTTP requests
+- prefilling input values
+- custom `id` and `class` attributes
+- configuration through struct tags or option parameters
 
 ## Usage
 
