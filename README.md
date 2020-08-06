@@ -1,6 +1,7 @@
 # forms
 
-Easily generate HTML form inputs from your types.
+Easily generate HTML form inputs from your types. Parse HTTP request parameters
+back into types (like https://github.com/gorilla/schema).
 
 ```
 inputs, _ := form.Render(NewUserForm{})
@@ -22,7 +23,49 @@ form.RenderOpts(NewUserForm{}, map[string]Options{
 })
 ```
 
+Nested structs are supported and field names are namespaced. These types:
 
+```
+type Address struct {
+    Line1 string
+    Line2 string
+    City string
+}
+
+type Person struct {
+    Name string
+    Address Address
+}
+```
+
+will generate this form:
+
+```
+<input type='text' name='Name'>
+<input type='text' name='Address.Line1'>
+<input type='text' name='Address.Line2'>
+<input type='text' name='Address.City'>
+```
+
+Slices are supported. These types:
+
+```
+type Pet struct { Name string }
+type Person struct {
+    Pets []Pet
+}
+
+person := &Person{
+    Pets: []Pet{{Name: "hector"},{Name: "biggles"}},
+}
+```
+
+will generate this form:
+
+```
+<input type='text' name='Person.Pets.1.Name' value='hector'>
+<input type='text' name='Person.Pets.2.Name' value='biggles'>
+```
 
 ## Usage
 
@@ -67,3 +110,4 @@ func main() {
 	})
 }
 ```
+
