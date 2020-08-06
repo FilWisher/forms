@@ -96,7 +96,7 @@ func Render(d interface{}) (template.HTML, error) {
 }
 
 func RenderEachOpts(d interface{}, opts map[string]Options) ([]template.HTML, error) {
-	return render(reflect.ValueOf(d), opts)
+	return render(reflect.ValueOf(d), opts, "")
 }
 
 func RenderEach(d interface{}) ([]template.HTML, error) {
@@ -107,9 +107,9 @@ func escape(v interface{}) string {
 	return template.HTMLEscapeString(fmt.Sprintf("%s", v))
 }
 
-func renderInput(opts Options) template.HTML {
+func renderInput(opts Options, prefix string) template.HTML {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("<input type=\"%s\" name=\"%s\"", opts.Type, opts.Name))
+	sb.WriteString(fmt.Sprintf("<input type=\"%s\" name=\"%s%s\"", opts.Type, prefix, opts.Name))
 	if opts.Class != "" {
 		sb.WriteString(fmt.Sprintf(" class=\"%s\"", opts.Class))
 	}
@@ -143,7 +143,7 @@ func mergeOptions(opts Options, defaults Options) Options {
 	return opts
 }
 
-func render(v reflect.Value, optsMap map[string]Options) ([]template.HTML, error) {
+func render(v reflect.Value, optsMap map[string]Options, prefix string) ([]template.HTML, error) {
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
 	}
@@ -180,7 +180,7 @@ func render(v reflect.Value, optsMap map[string]Options) ([]template.HTML, error
 
 		// Encode struct pointer types if the field is a valid pointer and a struct.
 		if isValidStructPointer(v.Field(i)) {
-			vs, err := render(v.Field(i).Elem(), optsMap)
+			vs, err := render(v.Field(i).Elem(), optsMap, options.Name+".")
 			if err != nil {
 				return nil, err
 			}
@@ -190,7 +190,7 @@ func render(v reflect.Value, optsMap map[string]Options) ([]template.HTML, error
 		}
 
 		if v.Field(i).Type().Kind() == reflect.Struct {
-			vs, err := render(v.Field(i), optsMap)
+			vs, err := render(v.Field(i), optsMap, options.Name+".")
 			if err != nil {
 				return nil, err
 			}
@@ -198,8 +198,16 @@ func render(v reflect.Value, optsMap map[string]Options) ([]template.HTML, error
 			continue
 		}
 
+		// TODO: support correct indexing and name prefixing
 		if v.Field(i).Type().Kind() == reflect.Slice {
-			return nil, errors.New("form.Render: cannot render slice types")
+			for j := 0; j < v.Field(i).Len(); j++ {
+				vs, err := render(v.Field(i).Index(j), optsMap, fmt.Sprintf("%s.%d.", options.Name, j))
+				if err != nil {
+					return nil, err
+				}
+				out = append(out, vs...)
+			}
+			continue
 		}
 
 		// No type provided, look up default
@@ -211,7 +219,7 @@ func render(v reflect.Value, optsMap map[string]Options) ([]template.HTML, error
 			options.Type = def
 		}
 
-		out = append(out, renderInput(options))
+		out = append(out, renderInput(options, prefix))
 	}
 
 	return out, nil
